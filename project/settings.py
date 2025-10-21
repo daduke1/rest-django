@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
 ]
- 
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -65,7 +65,7 @@ ROOT_URLCONF = 'project.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        "DIRS": [BASE_DIR / "lms/templates/"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -187,7 +187,7 @@ SWAGGER_SETTINGS = {
 # drf-yasg settings
 SWAGGER_SCHEMA_URL = 'http://localhost:8500'
 
-LOGIN_REDIRECT_URL = '/'
+LOGIN_REDIRECT_URL = "/"
 
 # Required by django.contrib.sites
 SITE_ID = 1
