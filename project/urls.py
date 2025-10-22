@@ -15,7 +15,8 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import include, path, re_path
+from django.urls import path, re_path, include, reverse_lazy
+from django.views.generic import RedirectView
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
@@ -37,16 +38,28 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
-    path('', include('lms.urls')),
-    path('admin/', admin.site.urls),
-    # DRF browsable API login
-    path('api-auth/', include('rest_framework.urls')),
-    # Swagger documentation
-    re_path(r'^swagger(?P<format>\.json|\.yaml)$',
-            schema_view.without_ui(cache_timeout=0), name='schema-json'),
-    path('swagger/', schema_view.with_ui('swagger',
-         cache_timeout=0), name='schema-swagger-ui'),
-    path('redoc/', schema_view.with_ui('redoc',
-         cache_timeout=0), name='schema-redoc'),
-    path('accounts/', include('allauth.urls')),
+    path("", lms_views.index, name="home"),
+
+    # API
+    path("api/", include("lms.urls")),
+    path("api-auth/", include("rest_framework.urls")),
+
+    # Admin
+    path("admin/", admin.site.urls),
+
+    # Docs (Swagger / ReDoc)
+    re_path(r"^swagger(?P<format>\.json|\.yaml)$", schema_view.without_ui(cache_timeout=0), name="schema-json"),
+    path("swagger/", schema_view.with_ui("swagger", cache_timeout=0), name="schema-swagger-ui"),
+    path("redoc/", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
+
+    # Allauth
+    path("accounts/", include("allauth.urls")),
+
+    # === Aliases para mantener nombres antiguos en tus templates ===
+    # /login  -> /accounts/login/
+    path("login/",    RedirectView.as_view(url=reverse_lazy("account_login")),  name="login"),
+    # /register -> /accounts/signup/
+    path("register/", RedirectView.as_view(url=reverse_lazy("account_signup")), name="register"),
+    # /logout -> /accounts/logout/   (por defecto muestra confirmación)
+    path("logout/",   RedirectView.as_view(url=reverse_lazy("account_logout")), name="logout"),
 ]
