@@ -1,12 +1,32 @@
 # lms/views.py
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
-from .models import Course, Lesson, Enrollment, Comment
-from .serializers import CourseSerializer, LessonSerializer, EnrollmentSerializer, CommentSerializer
+from .models import Course, Lesson, Enrollment, Review
+from .serializers import CourseSerializer, LessonSerializer, EnrollmentSerializer, ReviewSerializer
 from django.shortcuts import render
+from django.http import JsonResponse
 
 def index(request):
-    return render(request, 'index.html')
+    courses = Course.objects.all()
+    context = {
+        'courses': courses
+    }
+    return render(request, 'index.html', context)
+
+def registro(request):
+    if request.method == 'POST':
+        form = RegistroForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.set_password(form.cleaned_data['password'])
+            user.is_active = False
+            user.save()
+            messages.success(
+                request, 'Registro exitoso, revisa tu correo para activar.')
+            return redirect('login')
+    else:
+        form = RegistroForm()
+    return render(request, 'usuarios/registro.html', {'form': form})
 
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.select_related("instructor").all()
@@ -43,10 +63,17 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         else:
             serializer.save()
 
-class CommentViewSet(viewsets.ModelViewSet):
-    queryset = Comment.objects.select_related("user", "course").all()
-    serializer_class = CommentSerializer
+class ReviewViewSet(viewsets.ModelViewSet):
+    queryset = Review.objects.select_related("user", "course").all()
+    serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     filterset_fields = ["course", "user"]
     ordering_fields = ["published_at"]
     ordering = ["-published_at"]
+
+def list_courses_ajax(request):
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.method == 'GET':
+        courses = list(Course.objects.all().values(
+            'id', 'title', 'description'))
+        return JsonResponse({'courses': courses})
+    return JsonResponse({'error': 'bad request'}, status=400)

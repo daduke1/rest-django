@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load socialaccount %}
+
+{% block title %}Iniciar Sesión{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-center min-h-[60vh]">
+    <div class="w-full max-w-md bg-white p-8 rounded-lg shadow-md border border-gray-200">
+        
+        <h1 class="text-2xl font-bold text-center mb-6 text-gray-900">Bienvenido de nuevo</h1>
+
+        {% if form.errors %}
+            <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
+                <p class="font-bold">Error</p>
+                {% for field in form %}
+                    {% for error in field.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                {% endfor %}
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form class="login space-y-5" method="POST" action="{% url 'account_login' %}">
+            {% csrf_token %}
+
+            {% if redirect_field_value %}
+            <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}" />
+            {% endif %}
+
+            <div>
+                <label for="id_login" class="block text-sm font-medium text-gray-700">Usuario o Email</label>
+                <input type="text" name="login" placeholder="ej: juan@correo.com" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border" required id="id_login">
+            </div>
+
+            <div>
+                <label for="id_password" class="block text-sm font-medium text-gray-700">Contraseña</label>
+                <input type="password" name="password" placeholder="••••••••" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border" required id="id_password">
+            </div>
+
+            <div>
+                <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150">
+                    Iniciar Sesión
+                </button>
+            </div>
+        </form>
+
+        <div class="mt-6 text-center text-sm">
+            <p class="text-gray-600">
+                ¿No tienes cuenta? 
+                <a href="{% url 'account_signup' %}" class="font-medium text-blue-600 hover:text-blue-500">Regístrate aquí</a>
+            </p>
+            <p class="mt-2">
+                <a href="{% url 'account_reset_password' %}" class="text-gray-500 hover:text-gray-900">¿Olvidaste tu contraseña?</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

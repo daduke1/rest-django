@@ -1,7 +1,7 @@
 # lms/serializers.py
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Course, Lesson, Enrollment, Comment
+from .models import Course, Lesson, Enrollment, Review
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -31,8 +31,8 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         fields = ["id", "user", "course", "enrolled_at"]
         read_only_fields = ["id", "enrolled_at"]
 
-class CommentSerializer(serializers.ModelSerializer):
+class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Comment
-        fields = ["id", "course", "user", "comment", "published_at"]
+        model = Review
+        fields = ["id", "course", "user", "comment", "rating", "published_at"]
         read_only_fields = ["id", "published_at"]

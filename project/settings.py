@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -187,7 +188,14 @@ SWAGGER_SETTINGS = {
 # drf-yasg settings
 SWAGGER_SCHEMA_URL = 'http://localhost:8500'
 
-LOGIN_REDIRECT_URL = "/"
+# A dónde ir después de iniciar sesión (ej: al home)
+LOGIN_REDIRECT_URL = '/'  # O el nombre de tu url, ej: 'home'
+
+# A dónde ir después de cerrar sesión
+LOGOUT_REDIRECT_URL = '/accounts/login/' # O '/' si quieres que vayan al home
 
 # Required by django.contrib.sites
 SITE_ID = 1
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
