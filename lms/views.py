@@ -3,8 +3,10 @@ from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from .models import Course, Lesson, Enrollment, Review
 from .serializers import CourseSerializer, LessonSerializer, EnrollmentSerializer, ReviewSerializer
-from django.shortcuts import render
-from django.http import JsonResponse
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import JsonResponse, Http404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 
 def index(request):
     courses = Course.objects.all()
@@ -12,6 +14,95 @@ def index(request):
         'courses': courses
     }
     return render(request, 'index.html', context)
+
+def course_detail(request, slug):
+    """
+    View to display complete course information including:
+    - Course details (title, description, instructor, price, etc.)
+    - Lessons list
+    - Reviews and ratings
+    - Enrollment status (if user is authenticated)
+    """
+    course = get_object_or_404(
+        Course.objects.select_related('instructor').prefetch_related('lessons', 'reviews__user'),
+        slug=slug
+    )
+    
+    # Get lessons ordered by order field
+    lessons = course.lessons.all().order_by('order', 'id')
+    
+    # Get reviews with user information
+    reviews = course.reviews.all().select_related('user')
+    
+    # Calculate average rating
+    if reviews.exists():
+        avg_rating = sum(review.rating for review in reviews) / reviews.count()
+        avg_rating = round(avg_rating, 1)
+    else:
+        avg_rating = None
+    
+    # Check if user is enrolled (if authenticated)
+    is_enrolled = False
+    enrollment = None
+    is_instructor = False
+    if request.user.is_authenticated:
+        is_instructor = (request.user == course.instructor)
+        try:
+            enrollment = Enrollment.objects.get(user=request.user, course=course)
+            is_enrolled = True
+        except Enrollment.DoesNotExist:
+            pass
+    
+    # Calculate total course duration
+    total_duration = sum(lesson.duration_minutes for lesson in lessons)
+    
+    # Get enrollment count
+    enrollment_count = course.enrollments.count()
+    
+    context = {
+        'course': course,
+        'lessons': lessons,
+        'reviews': reviews,
+        'avg_rating': avg_rating,
+        'total_reviews': reviews.count(),
+        'is_enrolled': is_enrolled,
+        'enrollment': enrollment,
+        'is_instructor': is_instructor,
+        'total_duration': total_duration,
+        'enrollment_count': enrollment_count,
+    }
+    
+    return render(request, 'course_detail.html', context)
+
+@login_required
+def enroll_course(request, slug):
+    """
+    View to handle course enrollment.
+    Only authenticated users can enroll.
+    """
+    if request.method != 'POST':
+        messages.error(request, 'Método no permitido.')
+        return redirect('course_detail', slug=slug)
+    
+    course = get_object_or_404(Course, slug=slug)
+    
+    # Prevent instructor from enrolling in their own course
+    if request.user == course.instructor:
+        messages.warning(request, 'No puedes inscribirte en tu propio curso.')
+        return redirect('course_detail', slug=slug)
+    
+    # Check if user is already enrolled
+    enrollment, created = Enrollment.objects.get_or_create(
+        user=request.user,
+        course=course
+    )
+    
+    if created:
+        messages.success(request, f'¡Te has inscrito exitosamente en "{course.title}"!')
+    else:
+        messages.info(request, f'Ya estás inscrito en "{course.title}".')
+    
+    return redirect('course_detail', slug=slug)
 
 def registro(request):
     if request.method == 'POST':

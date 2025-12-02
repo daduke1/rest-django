@@ -41,6 +41,8 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path("", lms_views.index, name="home"),
+    path("course/<slug:slug>/", lms_views.course_detail, name="course_detail"),
+    path("course/<slug:slug>/enroll/", lms_views.enroll_course, name="enroll_course"),
 
     # API
     path("api/", include("lms.urls")),
