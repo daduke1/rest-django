@@ -133,7 +133,7 @@ python manage.py migrate
 ```
 python manage.py createsuperuser
 ```
-# Correr tests (si existieran)
+# Correr tests
 ```
 python manage.py test
 ```
