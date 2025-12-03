@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Cursos{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Mis Cursos</h1>
+        <p class="text-gray-600">
+            {% if total_enrolled > 0 %}
+                Estás inscrito en {{ total_enrolled }} curso{{ total_enrolled|pluralize }}
+            {% else %}
+                No estás inscrito en ningún curso todavía.
+            {% endif %}
+        </p>
+    </div>
+
+    {% if courses_data %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for item in courses_data %}
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+            <!-- Course Thumbnail -->
+            {% if item.course.thumbnail %}
+                <a href="{% url 'course_detail' item.course.slug %}">
+                    <img src="{{ item.course.thumbnail.url }}" alt="{{ item.course.title }}" 
+                         class="w-full h-48 object-cover">
+                </a>
+            {% else %}
+                <div class="w-full h-48 bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                    <span class="text-white text-2xl font-bold">{{ item.course.title|first|upper }}</span>
+                </div>
+            {% endif %}
+            
+            <!-- Course Content -->
+            <div class="p-6">
+                <div class="mb-3">
+                    <a href="{% url 'course_detail' item.course.slug %}" class="hover:text-blue-600">
+                        <h3 class="text-xl font-bold text-gray-900 mb-2 line-clamp-2">{{ item.course.title }}</h3>
+                    </a>
+                    {% if item.course.short_description %}
+                    <p class="text-sm text-gray-600 line-clamp-2 mb-3">{{ item.course.short_description }}</p>
+                    {% endif %}
+                </div>
+                
+                <!-- Course Stats -->
+                <div class="grid grid-cols-2 gap-3 mb-4 text-sm">
+                    <div>
+                        <p class="text-gray-500">Lecciones</p>
+                        <p class="font-semibold text-gray-900">{{ item.total_lessons }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Duración</p>
+                        <p class="font-semibold text-gray-900">
+                            {% if item.total_duration > 0 %}
+                                {{ item.total_duration }} min
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Enrollment Info -->
+                <div class="border-t border-gray-200 pt-4 mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-gray-500">Inscrito el</span>
+                        <span class="text-sm font-semibold text-gray-900">
+                            {{ item.enrollment.enrolled_at|date:"d M Y" }}
+                        </span>
+                    </div>
+                    {% if item.enrollment.is_completed %}
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-500">Estado</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            ✓ Completado
+                        </span>
+                    </div>
+                    {% else %}
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-500">Estado</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            En progreso
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Instructor -->
+                <div class="mb-4">
+                    <p class="text-xs text-gray-500 mb-1">Instructor</p>
+                    <p class="text-sm font-medium text-gray-900">
+                        {% if item.course.instructor.get_full_name %}
+                            {{ item.course.instructor.get_full_name }}
+                        {% else %}
+                            {{ item.course.instructor.username }}
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <!-- Action Button -->
+                <a href="{% url 'course_detail' item.course.slug %}" 
+                   class="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
+                    Continuar curso
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="bg-white rounded-lg shadow-lg p-12 text-center">
+        <div class="max-w-md mx-auto">
+            <svg class="mx-auto h-24 w-24 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+            </svg>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">No tienes cursos inscritos</h3>
+            <p class="text-gray-600 mb-6">
+                Explora nuestros cursos y comienza tu aprendizaje hoy.
+            </p>
+            <a href="{% url 'home' %}" 
+               class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
+                Explorar cursos
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

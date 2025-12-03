@@ -230,7 +230,6 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 
-# Configuración opcional pero recomendada
 DEFAULT_FROM_EMAIL = f'Erick LMS <{os.environ.get("EMAIL_HOST_USER")}>'
 
 SOCIALACCOUNT_PROVIDERS = {

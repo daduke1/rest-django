@@ -104,6 +104,39 @@ def enroll_course(request, slug):
     
     return redirect('course_detail', slug=slug)
 
+@login_required
+def my_courses(request):
+    """
+    View to display all courses the logged-in user is enrolled in.
+    Shows enrollment date, completion status, and course details.
+    """
+    enrollments = Enrollment.objects.filter(
+        user=request.user
+    ).select_related('course', 'course__instructor').prefetch_related('course__lessons').order_by('-enrolled_at')
+    
+    # Calculate stats for each enrollment
+    courses_data = []
+    for enrollment in enrollments:
+        course = enrollment.course
+        lessons = course.lessons.all()
+        total_lessons = lessons.count()
+        total_duration = sum(lesson.duration_minutes for lesson in lessons)
+        
+        courses_data.append({
+            'enrollment': enrollment,
+            'course': course,
+            'total_lessons': total_lessons,
+            'total_duration': total_duration,
+            'enrollment_count': course.enrollments.count(),
+        })
+    
+    context = {
+        'courses_data': courses_data,
+        'total_enrolled': len(courses_data),
+    }
+    
+    return render(request, 'my_courses.html', context)
+
 def registro(request):
     if request.method == 'POST':
         form = RegistroForm(request.POST)

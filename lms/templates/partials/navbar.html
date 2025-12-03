@@ -4,8 +4,11 @@
 
         <div class="flex items-center space-x-4">
             {% if user.is_authenticated %}
+                <a href="{% url 'my_courses' %}" class="text-gray-600 hover:text-blue-600 font-medium">
+                    Mis Cursos
+                </a>
                 <span class="text-gray-600">Hola, {{ user.username }}</span>
-                <form method="post" action="{% url 'account_logout' %}">
+                <form method="post" action="{% url 'account_logout' %}" class="inline">
                     {% csrf_token %}
                     <button type="submit" class="text-red-600 hover:text-red-800">Salir</button>
                 </form>

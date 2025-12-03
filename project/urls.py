@@ -43,6 +43,7 @@ urlpatterns = [
     path("", lms_views.index, name="home"),
     path("course/<slug:slug>/", lms_views.course_detail, name="course_detail"),
     path("course/<slug:slug>/enroll/", lms_views.enroll_course, name="enroll_course"),
+    path("my-courses/", lms_views.my_courses, name="my_courses"),
 
     # API
     path("api/", include("lms.urls")),
