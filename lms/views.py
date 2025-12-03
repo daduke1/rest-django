@@ -1,25 +1,141 @@
-from rest_framework import viewsets, permissions
+# lms/views.py
+from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter, OrderingFilter
-from django.shortcuts import render, redirect
+from .models import Course, Lesson, Enrollment, Review
+from .serializers import CourseSerializer, LessonSerializer, EnrollmentSerializer, ReviewSerializer
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import JsonResponse, Http404
 from django.contrib import messages
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.models import User
-from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from .forms import RegistroForm
 
-from .models import (
-    Profile, Category, Course, Lesson, Enrollment,
-    LessonProgress, CourseReview
-)
-from .serializers import (
-    UserSerializer, ProfileSerializer, CategorySerializer, CourseSerializer,
-    LessonSerializer, EnrollmentSerializer, LessonProgressSerializer, CourseReviewSerializer
-)
+def index(request):
+    courses = Course.objects.all()
+    context = {
+        'courses': courses
+    }
+    return render(request, 'index.html', context)
 
+def course_detail(request, slug):
+    """
+    View to display complete course information including:
+    - Course details (title, description, instructor, price, etc.)
+    - Lessons list
+    - Reviews and ratings
+    - Enrollment status (if user is authenticated)
+    """
+    course = get_object_or_404(
+        Course.objects.select_related('instructor').prefetch_related('lessons', 'reviews__user'),
+        slug=slug
+    )
+    
+    # Get lessons ordered by order field
+    lessons = course.lessons.all().order_by('order', 'id')
+    
+    # Get reviews with user information
+    reviews = course.reviews.all().select_related('user')
+    
+    # Calculate average rating
+    if reviews.exists():
+        avg_rating = sum(review.rating for review in reviews) / reviews.count()
+        avg_rating = round(avg_rating, 1)
+    else:
+        avg_rating = None
+    
+    # Check if user is enrolled (if authenticated)
+    is_enrolled = False
+    enrollment = None
+    is_instructor = False
+    if request.user.is_authenticated:
+        is_instructor = (request.user == course.instructor)
+        try:
+            enrollment = Enrollment.objects.get(user=request.user, course=course)
+            is_enrolled = True
+        except Enrollment.DoesNotExist:
+            pass
+    
+    # Calculate total course duration
+    total_duration = sum(lesson.duration_minutes for lesson in lessons)
+    
+    # Get enrollment count
+    enrollment_count = course.enrollments.count()
+    
+    context = {
+        'course': course,
+        'lessons': lessons,
+        'reviews': reviews,
+        'avg_rating': avg_rating,
+        'total_reviews': reviews.count(),
+        'is_enrolled': is_enrolled,
+        'enrollment': enrollment,
+        'is_instructor': is_instructor,
+        'total_duration': total_duration,
+        'enrollment_count': enrollment_count,
+    }
+    
+    return render(request, 'course_detail.html', context)
+
+@login_required
+def enroll_course(request, slug):
+    """
+    View to handle course enrollment.
+    Only authenticated users can enroll.
+    """
+    if request.method != 'POST':
+        messages.error(request, 'Método no permitido.')
+        return redirect('course_detail', slug=slug)
+    
+    course = get_object_or_404(Course, slug=slug)
+    
+    # Prevent instructor from enrolling in their own course
+    if request.user == course.instructor:
+        messages.warning(request, 'No puedes inscribirte en tu propio curso.')
+        return redirect('course_detail', slug=slug)
+    
+    # Check if user is already enrolled
+    enrollment, created = Enrollment.objects.get_or_create(
+        user=request.user,
+        course=course
+    )
+    
+    if created:
+        messages.success(request, f'¡Te has inscrito exitosamente en "{course.title}"!')
+    else:
+        messages.info(request, f'Ya estás inscrito en "{course.title}".')
+    
+    return redirect('course_detail', slug=slug)
+
+@login_required
+def my_courses(request):
+    """
+    View to display all courses the logged-in user is enrolled in.
+    Shows enrollment date, completion status, and course details.
+    """
+    enrollments = Enrollment.objects.filter(
+        user=request.user
+    ).select_related('course', 'course__instructor').prefetch_related('course__lessons').order_by('-enrolled_at')
+    
+    # Calculate stats for each enrollment
+    courses_data = []
+    for enrollment in enrollments:
+        course = enrollment.course
+        lessons = course.lessons.all()
+        total_lessons = lessons.count()
+        total_duration = sum(lesson.duration_minutes for lesson in lessons)
+        
+        courses_data.append({
+            'enrollment': enrollment,
+            'course': course,
+            'total_lessons': total_lessons,
+            'total_duration': total_duration,
+            'enrollment_count': course.enrollments.count(),
+        })
+    
+    context = {
+        'courses_data': courses_data,
+        'total_enrolled': len(courses_data),
+    }
+    
+    return render(request, 'my_courses.html', context)
 
 def registro(request):
     if request.method == 'POST':
@@ -27,160 +143,61 @@ def registro(request):
         if form.is_valid():
             user = form.save(commit=False)
             user.set_password(form.cleaned_data['password'])
+            user.is_active = False
             user.save()
-            messages.success(request, 'Usuario registrado correctamente')
+            messages.success(
+                request, 'Registro exitoso, revisa tu correo para activar.')
             return redirect('login')
     else:
         form = RegistroForm()
     return render(request, 'usuarios/registro.html', {'form': form})
 
-
-def iniciar_sesion(request):
-    # Detect whether a Google SocialApp is configured for allauth so the
-    # template can safely show/hide the provider login link.
-    google_provider_enabled = False
-    try:
-        from allauth.socialaccount.models import SocialApp
-        google_provider_enabled = SocialApp.objects.filter(
-            provider='google').exists()
-    except Exception:
-        # allauth may not be available or DB may not have SocialApp entries.
-        google_provider_enabled = False
-
-    if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            login(request, user)
-            return redirect('perfil')
-        else:
-            messages.error(request, 'Credenciales incorrectas')
-            # Redirect to home so the base template (which contains the login modal)
-            # will render the messages and our JS will keep the modal open.
-            return redirect('home')
-    return render(request, 'usuarios/login.html', {'google_provider_enabled': google_provider_enabled})
-
-
-@login_required
-def perfil(request):
-    return render(request, 'usuarios/perfil.html')
-
-
-def cerrar_sesion(request):
-    logout(request)
-    return redirect('home')
-
-
-def index(request):
-    # Show up to 20 published courses on the home page
-    courses = Course.objects.filter(
-        status='published').order_by('-created_at')[:20]
-    return render(request, 'index.html', {'courses': courses})
-
-
-class UserViewSet(viewsets.ModelViewSet):
-    """ViewSet for User model"""
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['is_active', 'is_staff']
-    search_fields = ['username', 'email', 'first_name', 'last_name']
-    ordering_fields = ['username', 'email', 'date_joined']
-    ordering = ['username']
-
-
-class ProfileViewSet(viewsets.ModelViewSet):
-    """ViewSet for Profile model"""
-    queryset = Profile.objects.all()
-    serializer_class = ProfileSerializer
-    permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['is_instructor']
-    search_fields = ['user__username', 'bio']
-    ordering_fields = ['created_at']
-    ordering = ['-created_at']
-
-
-class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
-    """Categorias para los cursos ofrecidos (read-only)"""
-    queryset = Category.objects.all()
-    serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    filter_backends = [SearchFilter, OrderingFilter]
-    search_fields = ['name']
-    ordering_fields = ['name']
-    ordering = ['name']
-
-
 class CourseViewSet(viewsets.ModelViewSet):
-    """ViewSet for Course model"""
-    queryset = Course.objects.all()
+    queryset = Course.objects.select_related("instructor").all()
     serializer_class = CourseSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['difficulty', 'status', 'category', 'instructor']
-    search_fields = ['title', 'description']
-    ordering_fields = ['title', 'created_at', 'price']
-    ordering = ['-created_at']
+    filterset_fields = ["instructor"]
+    search_fields = ["title", "description"]
+    ordering_fields = ["created_at", "updated_at"]
+    ordering = ["-created_at"]
 
     def perform_create(self, serializer):
-        serializer.save(instructor=self.request.user)
-
+        if "instructor" not in serializer.validated_data:
+            serializer.save(instructor=self.request.user)
+        else:
+            serializer.save()
 
 class LessonViewSet(viewsets.ModelViewSet):
-    """ViewSet for Lesson model"""
-    queryset = Lesson.objects.all()
+    queryset = Lesson.objects.select_related("course").all()
     serializer_class = LessonSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['course', 'lesson_type', 'is_published']
-    search_fields = ['title', 'description']
-    ordering_fields = ['order', 'title', 'created_at']
-    ordering = ['course', 'order']
-
+    filterset_fields = ["course"]
+    search_fields = ["title", "content"]
+    ordering_fields = ["order", "created_at"]
+    ordering = ["order"]
 
 class EnrollmentViewSet(viewsets.ModelViewSet):
-    """ViewSet for Enrollment model"""
-    queryset = Enrollment.objects.all()
+    queryset = Enrollment.objects.select_related("user", "course").all()
     serializer_class = EnrollmentSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['status', 'course', 'student']
-    search_fields = ['course__title']
-    ordering_fields = ['enrolled_at']
-    ordering = ['-enrolled_at']
 
     def perform_create(self, serializer):
-        serializer.save(student=self.request.user)
+        if "user" not in serializer.validated_data:
+            serializer.save(user=self.request.user)
+        else:
+            serializer.save()
 
-
-class CourseReviewViewSet(viewsets.ModelViewSet):
-    """ViewSet for CourseReview model"""
-    queryset = CourseReview.objects.all()
-    serializer_class = CourseReviewSerializer
+class ReviewViewSet(viewsets.ModelViewSet):
+    queryset = Review.objects.select_related("user", "course").all()
+    serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['course', 'rating']
-    search_fields = ['comment']
-    ordering_fields = ['created_at', 'rating']
-    ordering = ['-created_at']
+    filterset_fields = ["course", "user"]
+    ordering_fields = ["published_at"]
+    ordering = ["-published_at"]
 
-    def perform_create(self, serializer):
-        serializer.save(student=self.request.user)
-
-
-class LessonProgressViewSet(viewsets.ModelViewSet):
-    """ViewSet for LessonProgress model"""
-    queryset = LessonProgress.objects.all()
-    serializer_class = LessonProgressSerializer
-    permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['student', 'lesson', 'is_completed']
-    search_fields = ['lesson__title']
-    ordering_fields = ['completed_at', 'created_at']
-    ordering = ['-created_at']
-
-    def perform_create(self, serializer):
-        serializer.save(student=self.request.user)
+def list_courses_ajax(request):
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.method == 'GET':
+        courses = list(Course.objects.all().values(
+            'id', 'title', 'description'))
+        return JsonResponse({'courses': courses})
+    return JsonResponse({'error': 'bad request'}, status=400)

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -187,7 +188,59 @@ SWAGGER_SETTINGS = {
 # drf-yasg settings
 SWAGGER_SCHEMA_URL = 'http://localhost:8500'
 
-LOGIN_REDIRECT_URL = "/"
+# A dónde ir después de iniciar sesión (ej: al home)
+LOGIN_REDIRECT_URL = '/'  # O el nombre de tu url, ej: 'home'
+
+# A dónde ir después de cerrar sesión
+LOGOUT_REDIRECT_URL = '/accounts/login/' # O '/' si quieres que vayan al home
 
 # Required by django.contrib.sites
-SITE_ID = 1
+SITE_ID = 3
+
+# Django Allauth settings
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+# Allauth Account settings
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'  # 'mandatory', 'optional', or 'none'
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True
+
+# Social Account settings (for Google OAuth2)
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'  # Google already verifies emails
+SOCIALACCOUNT_AUTO_SIGNUP = True  # Automatically create account on first login
+SOCIALACCOUNT_QUERY_EMAIL = True  # Request email from Google
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+# Configuración de Gmail
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+# CREDENCIALES
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+
+DEFAULT_FROM_EMAIL = f'Erick LMS <{os.environ.get("EMAIL_HOST_USER")}>'
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+            'prompt': 'select_account' 
+        }
+    }
+}

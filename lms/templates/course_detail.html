@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}{{ course.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Course Header -->
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
+        <div class="md:flex">
+            <!-- Thumbnail -->
+            <div class="md:w-1/3">
+                {% if course.thumbnail %}
+                    <img src="{{ course.thumbnail.url }}" alt="{{ course.title }}" class="w-full h-64 md:h-full object-cover">
+                {% else %}
+                    <div class="w-full h-64 md:h-full bg-gray-200 flex items-center justify-center">
+                        <span class="text-gray-400 text-lg">Sin imagen</span>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Course Info -->
+            <div class="md:w-2/3 p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex-1">
+                        <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ course.title }}</h1>
+                        {% if course.short_description %}
+                        <p class="text-lg text-gray-600 mb-4">{{ course.short_description }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="ml-4 text-right">
+                        <div class="text-3xl font-bold text-blue-600 mb-2">
+                            {% if course.price > 0 %}
+                                ${{ course.price }}
+                            {% else %}
+                                Gratis
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Instructor Info -->
+                <div class="flex items-center mb-4 pb-4 border-b">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                            <span class="text-blue-600 font-semibold text-lg">
+                                {{ course.instructor.first_name|first|default:course.instructor.username|first|upper }}
+                            </span>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Instructor</p>
+                            <p class="font-semibold text-gray-900">
+                                {% if course.instructor.get_full_name %}
+                                    {{ course.instructor.get_full_name }}
+                                {% else %}
+                                    {{ course.instructor.username }}
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Course Stats -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                        <p class="text-sm text-gray-500">Lecciones</p>
+                        <p class="text-xl font-semibold">{{ lessons|length }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Duración</p>
+                        <p class="text-xl font-semibold">
+                            {% if total_duration > 0 %}
+                                {{ total_duration }} min
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Estudiantes</p>
+                        <p class="text-xl font-semibold">{{ enrollment_count }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Calificación</p>
+                        <div class="flex items-center">
+                            {% if avg_rating %}
+                                <span class="text-xl font-semibold mr-1">{{ avg_rating }}</span>
+                                <span class="text-yellow-400">★</span>
+                                <span class="text-sm text-gray-500 ml-1">({{ total_reviews }})</span>
+                            {% else %}
+                                <span class="text-gray-400">Sin calificaciones</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Enrollment Status -->
+                {% if user.is_authenticated %}
+                    {% if is_instructor %}
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                            <p class="text-blue-800 font-semibold">👨‍🏫 Eres el instructor de este curso</p>
+                            <p class="text-sm text-blue-600 mt-1">Puedes editar el curso desde el panel de administración</p>
+                        </div>
+                    {% elif is_enrolled %}
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                            <p class="text-green-800 font-semibold">✓ Estás inscrito en este curso</p>
+                            {% if enrollment.is_completed %}
+                                <p class="text-sm text-green-600 mt-1">Curso completado</p>
+                            {% else %}
+                                <p class="text-sm text-green-600 mt-1">Inscrito el {{ enrollment.enrolled_at|date:"d M Y" }}</p>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <form method="post" action="{% url 'enroll_course' course.slug %}" class="inline-block">
+                            {% csrf_token %}
+                            <button type="submit" class="w-full md:w-auto bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
+                                Inscribirse en el curso
+                            </button>
+                        </form>
+                    {% endif %}
+                {% else %}
+                    <a href="{% url 'account_login' %}?next={% url 'course_detail' course.slug %}" class="inline-block w-full md:w-auto bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition text-center">
+                        Inicia sesión para inscribirte
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="grid md:grid-cols-3 gap-8">
+        <!-- Main Content -->
+        <div class="md:col-span-2 space-y-8">
+            <!-- Description -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-bold mb-4">Descripción del curso</h2>
+                {% if course.description %}
+                    <div class="prose max-w-none text-gray-700 whitespace-pre-line">
+                        {{ course.description }}
+                    </div>
+                {% else %}
+                    <p class="text-gray-500">No hay descripción disponible para este curso.</p>
+                {% endif %}
+            </div>
+            
+            <!-- Lessons -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-bold mb-4">Contenido del curso</h2>
+                {% if lessons %}
+                    <div class="space-y-3">
+                        {% for lesson in lessons %}
+                        <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center mb-2">
+                                        <span class="bg-blue-100 text-blue-600 text-xs font-semibold px-2 py-1 rounded mr-2">
+                                            Lección {{ lesson.order }}
+                                        </span>
+                                        {% if lesson.duration_minutes > 0 %}
+                                        <span class="text-sm text-gray-500">{{ lesson.duration_minutes }} min</span>
+                                        {% endif %}
+                                    </div>
+                                    <h3 class="font-semibold text-gray-900 mb-1">{{ lesson.title }}</h3>
+                                    {% if lesson.content %}
+                                    <p class="text-sm text-gray-600 line-clamp-2">{{ lesson.content|truncatewords:20 }}</p>
+                                    {% endif %}
+                                    {% if lesson.video_url %}
+                                    <a href="{{ lesson.video_url }}" target="_blank" class="text-blue-600 text-sm hover:underline mt-2 inline-block">
+                                        Ver video →
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-gray-500">Este curso aún no tiene lecciones disponibles.</p>
+                {% endif %}
+            </div>
+            
+            <!-- Reviews -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-bold mb-4">Reseñas y calificaciones</h2>
+                {% if reviews %}
+                    <div class="space-y-4">
+                        {% for review in reviews %}
+                        <div class="border-b border-gray-200 pb-4 last:border-b-0 last:pb-0">
+                            <div class="flex items-start justify-between mb-2">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mr-3">
+                                        <span class="text-gray-600 font-semibold">
+                                            {{ review.user.first_name|first|default:review.user.username|first|upper }}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <p class="font-semibold text-gray-900">
+                                            {% if review.user.get_full_name %}
+                                                {{ review.user.get_full_name }}
+                                            {% else %}
+                                                {{ review.user.username }}
+                                            {% endif %}
+                                        </p>
+                                        <p class="text-sm text-gray-500">{{ review.published_at|date:"d M Y" }}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= review.rating %}
+                                            <span class="text-yellow-400">★</span>
+                                        {% else %}
+                                            <span class="text-gray-300">★</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <p class="text-gray-700 ml-13">{{ review.comment }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-gray-500">Aún no hay reseñas para este curso. Sé el primero en calificar.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="md:col-span-1">
+            <div class="bg-white rounded-lg shadow-lg p-6 sticky top-4">
+                <h3 class="text-xl font-bold mb-4">Información del curso</h3>
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-sm text-gray-500 mb-1">Estado</p>
+                        <p class="font-semibold">
+                            {% if course.is_published %}
+                                <span class="text-green-600">Publicado</span>
+                            {% else %}
+                                <span class="text-gray-400">No publicado</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500 mb-1">Creado</p>
+                        <p class="font-semibold">{{ course.created_at|date:"d M Y" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500 mb-1">Última actualización</p>
+                        <p class="font-semibold">{{ course.updated_at|date:"d M Y" }}</p>
+                    </div>
+                    {% if course.slug %}
+                    <div>
+                        <p class="text-sm text-gray-500 mb-1">URL</p>
+                        <p class="font-mono text-xs text-gray-600 break-all">/course/{{ course.slug }}/</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
