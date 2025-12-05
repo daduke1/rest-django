@@ -7,6 +7,8 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, Http404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
+from allauth.account.models import EmailAddress
 
 def index(request):
     courses = Course.objects.all()
@@ -151,6 +153,43 @@ def registro(request):
     else:
         form = RegistroForm()
     return render(request, 'usuarios/registro.html', {'form': form})
+
+def activate_account(request, user_id):
+    """
+    View to activate a user account when they click the activation link in their email.
+    Also verifies the email in Allauth's EmailAddress model.
+    """
+    try:
+        user = get_object_or_404(User, pk=user_id)
+        
+        if user.is_active:
+            messages.info(request, 'Tu cuenta ya está activada. Puedes iniciar sesión.')
+        else:
+            user.is_active = True
+            user.save()
+            messages.success(request, '¡Cuenta activada exitosamente! Ya puedes iniciar sesión.')
+        
+        # Verify email in Allauth's EmailAddress model
+        # This is required because ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+        try:
+            # Try to get existing EmailAddress for this user and email
+            email_address = EmailAddress.objects.get(user=user, email=user.email)
+            email_address.verified = True
+            email_address.primary = True
+            email_address.save()
+        except EmailAddress.DoesNotExist:
+            # Create new EmailAddress if it doesn't exist
+            EmailAddress.objects.create(
+                user=user,
+                email=user.email,
+                verified=True,
+                primary=True
+            )
+        
+        return redirect('account_login')
+    except Exception as e:
+        messages.error(request, 'Error al activar la cuenta. Por favor, contacta al administrador.')
+        return redirect('account_login')
 
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.select_related("instructor").all()

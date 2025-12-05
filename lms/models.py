@@ -8,16 +8,13 @@ class Course(models.Model):
     # Slug único para URLs amigables (ej: /curso/aprende-django/)
     slug = models.SlugField(unique=True, blank=True) 
     
-    # Diferencia entre resumen corto (para cards) y descripción completa
     short_description = models.CharField(max_length=150, blank=True) 
     description = models.TextField(blank=True)
     
     instructor = models.ForeignKey(User, on_delete=models.CASCADE, related_name="courses_taught")
     
-    # Imagen de portada (requiere instalar Pillow: pip install Pillow)
     thumbnail = models.ImageField(upload_to='courses/thumbnails/', blank=True, null=True)
     
-    # Precio (Decimal es mejor que Float para dinero)
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     
     # Control de visibilidad

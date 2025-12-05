@@ -45,6 +45,9 @@ urlpatterns = [
     path("course/<slug:slug>/enroll/", lms_views.enroll_course, name="enroll_course"),
     path("my-courses/", lms_views.my_courses, name="my_courses"),
 
+    # Account activation
+    path("activate/<int:user_id>/", lms_views.activate_account, name="activate_account"),
+
     # API
     path("api/", include("lms.urls")),
     path("api-auth/", include("rest_framework.urls")),
